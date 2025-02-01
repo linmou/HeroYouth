@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Strategy Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: #333;
+            color: white;
+            padding: 20px;
+        }
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .chat-bubble {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .message-content {
+            background-color: white;
+            border-radius: 10px;
+            padding: 10px;
+            max-width: 70%;
+        }
+        .user-message .message-content {
+            background-color: #dcf8c6;
+        }
+        .emotion, .analysis, .constr_score, .aggr_score, .refinement, .alternative {
+            font-style: italic;
+            color: #666;
+            margin-top: 5px;
+        }
+        .recipient-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .recipient-list li {
+            cursor: pointer;
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: #444;
+            border-radius: 5px;
+        }
+        .recipient-list li:hover {
+            background-color: #555;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .rollback-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            display: none;
+        }
+        #total-scores {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #444;
+            border-radius: 5px;
+        }
+        #total-scores p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .impressions {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .impression-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .impression-item h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .impression-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Chat Analysis</h2>
+            <div id="total-scores">
+                <p>Total constructive scores: <span id="ttl_constr"></span></p>
+                <p>Total aggressive scores: <span id="ttl_aggr"></span></p>
+            </div>
+            <ul class="recipient-list" id="recipient-list"></ul>
+        </div>
+        <div class="main-content" id="chat-analysis"></div>
+    </div>
+
+    <div id="character-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-title"></h2>
+            <p id="modal-content"></p>
+        </div>
+    </div>
+
+    <div id="impressions" class="impressions"></div>
+    
+    <script>
+        let currentRecipient = '';
+        let chatHistories = {};
+        let impressionsFromOthers = {};
+
+        function loadChatHistories() {
+            // Check if chatHistories exists in localStorage
+            const storedChatHistories = localStorage.getItem('chatHistories');
+            
+            if (storedChatHistories) {
+                // If it exists, parse it and use it
+                let cur_storedChatHistories = JSON.parse(storedChatHistories);
+                const ttl_constr = cur_storedChatHistories.ttl_constr;
+                const ttl_aggr = cur_storedChatHistories.ttl_aggr;
+                chatHistories = cur_storedChatHistories.histories;
+                impressionsFromOthers = cur_storedChatHistories.impression_from_others;
+                
+                // Update the UI
+                updateRecipientList();
+                updateTotalScores(ttl_constr, ttl_aggr);
+                const firstRecipient = Object.keys(chatHistories)[0];
+                loadChatAnalysis(firstRecipient);
+                displayImpressions();
+
+                // Clear the localStorage to avoid using old data on page refresh
+                localStorage.removeItem('chatHistories');
+                
+            } else {
+                // If it doesn't exist in localStorage, fetch from server
+                fetch('/user-analyse', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    chatHistories = data.histories;
+                    impressionsFromOthers = data.impression_from_others;
+                    updateRecipientList();
+                    updateTotalScores(data.ttl_constr, data.ttl_aggr);
+                    const firstRecipient = Object.keys(chatHistories)[0];
+                    loadChatAnalysis(firstRecipient);
+                    displayImpressions();
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+        
+        function updateTotalScores(ttl_constr, ttl_aggr) {
+            document.getElementById('ttl_constr').textContent = ttl_constr;
+            document.getElementById('ttl_aggr').textContent = ttl_aggr;
+        }
+
+        function updateRecipientList() {
+            const recipientList = document.getElementById('recipient-list');
+            recipientList.innerHTML = ''; // Clear existing list
+            
+            for (let recipient in chatHistories) {
+                const li = document.createElement('li');
+                li.textContent = recipient;
+                li.onclick = () => loadChatAnalysis(recipient);
+                recipientList.appendChild(li);
+            }
+        }
+
+        function displayImpressions() {
+            const impressionsDiv = document.getElementById('impressions');
+            if (!impressionsDiv) {
+                console.error('Impressions div not found');
+                return;
+            }
+            impressionsDiv.innerHTML = '<h2>Impressions from Others</h2>';
+
+            for (let person in impressionsFromOthers) {
+                const impression = impressionsFromOthers[person];
+                const impressionItem = document.createElement('div');
+                impressionItem.className = 'impression-item';
+                impressionItem.innerHTML = `
+                    <h3>${person}'s Impression of ${impression.name}</h3>
+                    <p><strong>Understanding:</strong> ${impression.understanding}</p>
+                    <p><strong>Interaction Pattern:</strong> ${impression.interaction_pattern}</p>
+                `;
+                impressionsDiv.appendChild(impressionItem);
+            }
+        }
+       
+
+        function loadChatAnalysis(recipient) {
+            currentRecipient = recipient;
+            const chatAnalysis = document.getElementById('chat-analysis');
+            chatAnalysis.innerHTML = '';
+
+            chatHistories[recipient].forEach((message, index) => {
+                const chatBubble = document.createElement('div');
+                chatBubble.className = `chat-bubble ${message.role === 'User' ? 'user-message' : ''}`;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar';
+                avatar.textContent = message.role[0].toUpperCase();
+                if (message.role !== 'User') {
+                    avatar.onclick = () => showCharacterDetails(message);
+                }
+
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+
+                const content = document.createElement('div');
+                content.textContent = message.content;
+                messageContent.appendChild(content);
+
+                if (message.emotion && message.role != 'User') {
+                    const emotion = document.createElement('div');
+                    emotion.className = 'emotion';
+
+                    if (typeof message.emotion === 'string') {
+                        emotion.textContent = `Emotion: ${message.emotion}`;
+                    } else if (typeof message.emotion === 'object') {
+                        emotion.textContent = `Emotion: ${JSON.stringify(message.emotion)}`;
+                    }
+                    messageContent.appendChild(emotion);
+                }
+
+                if (message.analysis) {
+                    const analysis = document.createElement('div');
+                    analysis.className = 'analysis';
+                    analysis.textContent = `Analysis: ${message.analysis}`;
+                    messageContent.appendChild(analysis);
+                }
+
+                if (message.constructive){
+                    const constr_score = document.createElement('div');
+                    constr_score.className = 'constr_score';
+                    constr_score.textContent = `Constructive Score: ${message.constructive}`;
+                    messageContent.appendChild(constr_score);
+                }
+                
+                if (message.aggressive){
+                    const aggr_score = document.createElement('div');
+                    aggr_score.className = 'aggr_score';
+                    aggr_score.textContent = `Aggressive Score: ${message.aggressive}`;
+                    messageContent.appendChild(aggr_score);
+                }
+                
+                if (message.refinement) {
+                    const refinement = document.createElement('div');
+                    refinement.className = 'refinement';
+                
+                    // Check if message.refinement is an array
+                    if (Array.isArray(message.refinement)) {
+                        refinement.textContent = 'Possible Refinement: ';
+                        message.refinement.forEach((item, index) => {
+                            // Convert each item to a string and append it to the refinement text content
+                            refinement.textContent += `${index > 0 ? ', ' : ''}${JSON.stringify(item)}`;
+                        });
+                    } else {
+                        // If it's not an array, directly convert it to a string
+                        refinement.textContent = `Possible Refinement: ${message.refinement}`;
+                    }
+                
+                    messageContent.appendChild(refinement);
+                };
+
+                if (message.alternative) {
+                    const alternative = document.createElement('div');
+                    alternative.className = 'alternative';
+                
+                    // Check if message.alternative is an array
+                    if (Array.isArray(message.alternative)) {
+                        alternative.textContent = 'Other Strategies: ';
+                        message.alternative.forEach((item, index) => {
+                            // Convert each item to a string and append it to the refinement text content
+                            alternative.textContent += `${index > 0 ? ', ' : ''}${JSON.stringify(item)}`;
+                        });
+                    } else {
+                        // If it's not an array, directly convert it to a string
+                        alternative.textContent = `Other Strategies: ${message.alternative}`;
+                    }
+                
+                    messageContent.appendChild(alternative);
+                };
+                
+
+                chatBubble.appendChild(avatar);
+                chatBubble.appendChild(messageContent);
+
+                
+                const rollbackBtn = document.createElement('button');
+                rollbackBtn.className = 'rollback-btn';
+                rollbackBtn.textContent = 'Rollback';
+                rollbackBtn.onclick = () => rollbackToMessage(index);
+                messageContent.appendChild(rollbackBtn);
+
+                chatBubble.onmouseover = () => rollbackBtn.style.display = 'block';
+                chatBubble.onmouseout = () => rollbackBtn.style.display = 'none';
+                
+
+                chatAnalysis.appendChild(chatBubble);
+            });
+        }
+
+        function showCharacterDetails(message) {
+            const modal = document.getElementById('character-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalContent = document.getElementById('modal-content');
+        
+            const character = message.role;
+            modalTitle.textContent = `${character}'s Inner Status`;
+        
+            // Clear previous content
+            modalContent.innerHTML = '';
+        
+            // Create elements for emotion, social relations, and thoughts to do
+            const emotionSection = document.createElement('div');
+            emotionSection.className = 'character-emotion';
+            emotionSection.innerHTML = '<h3>Emotions</h3>';
+
+            if (typeof message.emotion === 'string') {
+                emotionSection.innerHTML += `<p>${message.emotion}</p>`;
+            } else if (typeof message.emotion === 'object') {
+                emotionSection.innerHTML += `<p>${JSON.stringify(message.emotion)}</p>`;
+            }
+
+            const socialRelationsSection = document.createElement('div');
+            socialRelationsSection.className = 'character-social-relations';
+            socialRelationsSection.innerHTML = '<h3>Social Relations</h3>';
+
+            if (typeof message.social_relations === 'string') {
+                socialRelationsSection.innerHTML += `<p>${message.social_relations}</p>`;
+            } else if (typeof message.social_relations === 'object') {
+                socialRelationsSection.innerHTML += `<p>${JSON.stringify(message.social_relations)}</p>`;
+            }
+
+            const thoughtsToDoSection = document.createElement('div');
+            thoughtsToDoSection.className = 'character-thoughts-to-do';
+            thoughtsToDoSection.innerHTML = '<h3>Thoughts & To-Do</h3>';
+
+            if (typeof message.thoughts_to_do === 'string') {
+                thoughtsToDoSection.innerHTML += `<p>${message.thoughts_to_do}</p>`;
+            } else if (typeof message.thoughts_to_do === 'object') {
+                thoughtsToDoSection.innerHTML += `<p>${JSON.stringify(message.thoughts_to_do)}</p>`;
+            }
+
+        
+            // Append sections to the modal content
+            modalContent.appendChild(emotionSection);
+            modalContent.appendChild(socialRelationsSection);
+            modalContent.appendChild(thoughtsToDoSection);
+        
+            // Display the modal
+            modal.style.display = 'block';
+        
+            // Set up the close button
+            const closeBtn = document.getElementsByClassName('close')[0];
+            closeBtn.onclick = () => modal.style.display = 'none';
+        
+            // Close the modal when clicking outside of it
+            window.onclick = (event) => {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        }
+        
+
+        async function rollbackToMessage(index) {
+            if (confirm('Are you sure you want to rollback to this message? This will remove all subsequent messages.')) {
+                const timestamp = chatHistories[currentRecipient][index].timestamp;
+        
+                try {
+                    const response = await fetch('/roll-back', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ timestamp: timestamp }),
+                    });
+        
+                    if (response.ok) {
+                        const rollbackInfo = {
+                            timestamp: timestamp,
+                            id: Date.now(), // Unique identifier
+                            applied: false
+                        };
+                        localStorage.setItem('pendingRollback', JSON.stringify(rollbackInfo));
+                        alert('Rollback successful. Returning to main chat...');
+                        window.location.href = '/';
+                    } else {
+                        alert('Failed to rollback. Please try again.');
+                    }
+                } catch (error) {
+                    // Handle network errors
+                    alert('An error occurred. Please check your network connection and try again.');
+                }
+            }
+        }
+        
+
+        // Call loadChatHistories when the page loads
+        document.addEventListener('DOMContentLoaded', (event) => {
+            loadChatHistories();
+        });
+    </script>
+</body>
+</html>

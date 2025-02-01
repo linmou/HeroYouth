@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role-playing and Communication Scenario</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .container {
+            display: flex;
+            height: calc(100% - 60px);
+        }
+        .left-column {
+            width: 33.33%;
+            background-color: #ffffff;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .right-column {
+            width: 66.67%;
+            display: flex;
+            flex-direction: column;
+        }
+        .right-top {
+            height: 33.33%;
+            background-color: #e9ecef;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .right-bottom {
+            height: 66.67%;
+            display: flex;
+        }
+        .public-chat, .private-chat {
+            width: 50%;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .public-chat {
+            background-color: #f1f3f5;
+        }
+        .private-chat {
+            background-color: #e9ecef;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #ffffff;
+        }
+        .chat-bubble {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .avatar {
+            cursor: pointer;
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #007bff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+        }
+        .message-content {
+            background-color: #f1f0f0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+        }
+        .message-content .name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }    
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        .input-container input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+        }
+        .input-container button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-container button:hover {
+            background-color: #0056b3;
+        }
+        .input-container button.mic {
+            padding: 10px;
+            background-color: #28a745;
+        }
+        .input-container button.mic:hover {
+            background-color: #218838;
+        }
+        .input-container button svg {
+            width: 20px;
+            height: 20px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #343a40;
+        }
+        .character-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #adb5bd;
+            margin-right: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        .character-status-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        #character-status-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .status-row {
+            display: flex;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+        .character-status {
+            flex: 1;
+            max-width: calc(33.33% - 7px);
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .character-avatar {
+            position: relative;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 3px;
+            background-color: #00ff0479;
+            color: rgb(60, 78, 190);
+            border-radius: 3px;
+            text-align: center;
+        }
+        .notification-dot {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            display: none;
+        }
+        .emotion-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .emotion {
+            font-size: 0.9em;
+        }
+        .bottom-buttons {
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        .bottom-buttons button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .bottom-buttons button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-column">
+            <h2>Scene</h2>
+            <img src="imgs/1.png" alt="Scene Image" style="max-width: 100%; border-radius: 5px;">
+            <p>Character Information:</p>
+            <p>Bullee: Excellent grades, arrogant, liked by teachers, enjoys being a leader.</p>
+            <p>Swifer: Studious, knowledgeable. Likes to communicate with Bullee.</p>
+            <p>Victeem: Average grades, introverted. Average popularity.</p>
+            <p>You: Good relationships with others. Everyone likes to play with you.</p>
+            <p>Simulated Scenario:</p>
+            <p>Classroom during break. A physics interest group composed of Bullee, Swifer, and you is discussing how to build a paper bridge. Victeem has no group and wants to join them.</p>
+            <p>Victeem: "(shy and sincere tone) @Bullee @Swifer You have formed a group to complete this assignment, but I have no one to team up with. Can I join your group to complete this group assignment together?"</p>
+            <p>Bullee: "(contemptuous tone) @Victeem, trash like you shouldn't join our group. Looking at you makes me sick."</p>
+            <p>Swifer: "(mocking tone) @Victeem, Bullee is right, someone with your abilities would only drag us down. Stay away from us, trash."</p>
+        </div>
+        <div class="right-column">
+            <div class="right-top">
+                <h2>Character Status</h2>
+                <div id="character-status-container"></div>
+            </div>
+            <div class="right-bottom">
+                <div class="public-chat">
+                    <h2>Public Chat Room</h2>
+                    <div class="chat-container" id="public-chat"></div>
+                    <div class="input-container">
+                        <input type="text" id="public-input" placeholder="Enter your message...">
+                        <button onclick="sendPublicMessage()">Send</button>
+                        <button class="mic" id="audio-input-button-pb">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="private-chat">
+                    <h2>Private Chat - <span id="dm-target">-</span></h2>
+                    <div class="chat-container" id="dm-chat"></div>
+                    <div class="input-container">
+                        <input type="text" id="dm-input" placeholder="Enter your private message...">
+                        <button onclick="sendDMMessage()">Send</button>
+                        <button class="mic" id="audio-input-button-dm">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="bottom-buttons">
+        <button id="start-conversation">Start Public Chat</button>
+        <button id="audio-toggle">Audio Toggle</button>
+        <button id="user-analyse">Analyze</button>
+    </div>
+    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+    <script type="module" src="{{ url_for('static', filename='script_s.js') }}"></script>
+</body>
+</html>
